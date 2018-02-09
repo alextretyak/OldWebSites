@@ -1,0 +1,255 @@
+<html>
+<head>
+<title>Лабораторная работа №1. Выполнил: студент группы Р-3211  Третьяк А.В.</title>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+<style type="text/css">
+	table#cTable input {border:none;width:30px;padding:0;margin:0;text-align:center}
+	table {background-color:#005;margin:5px}
+	body, table td {background-color:white;text-align:center}
+	table th {background-color:#f5f5ff}
+</style>
+</head>
+<body onload="onLoad()">
+<script type="text/javascript">
+function onLoad()
+{
+	var data = ["00103","00112","02123","01003","01012","12102",
+				"12201","12013","12023","10012","10022","10002",
+				"20221","20203","20212","21012","21102","21202"];
+	for (var i=0; i<data.length; i++) addRow();
+
+	reEnumerateTable();
+
+	for (var i=0; i<data.length; i++)
+		for (var j=0; j<data[i].length; j++)
+			document.getElementById('cTable').rows[i+1].cells[j+1].getElementsByTagName('input')[0].value = data[i].charAt(j);
+}
+
+function reEnumerateTable()
+{
+	with (document.getElementById('cTable'))
+		for (var i=1; i<rows.length; i++)
+		{
+			//rows[i].id = 'row'+i;
+			rows[i].cells[0].innerHTML = i;
+			rows[i].cells[6].innerHTML = '<img style="cursor:pointer" src="insert.png" onclick="insertRow('+i+')">';
+			rows[i].cells[7].innerHTML = '<img style="cursor:pointer" src="remove.png" onclick="removeRow('+i+')">';
+		}
+}
+
+function removeRow(i)
+{
+	document.getElementById('cTable').deleteRow(i);
+	reEnumerateTable();
+}
+
+function ins(row)
+{
+	row.insertCell(-1);//.style.textAlign='center';
+	for (var i=1; i<=5; i++)
+	{
+		var c = row.insertCell(-1);
+		c.innerHTML = "<input type='text' maxlength='1' onclick='this.value=\"\"'>";
+	}
+	row.insertCell(-1);
+	row.insertCell(-1);
+	row.insertCell(-1);
+}
+
+function insertRow(i)
+{
+	ins(document.getElementById('cTable').insertRow(i));
+	reEnumerateTable();
+}
+
+function addRow()
+{
+	with (document.getElementById('cTable'))
+	{
+		var len = rows.length;
+		ins(insertRow(len));
+	}
+}
+
+function Start()
+{
+	//Преобразуем входные данные к массиву {"связка": [{res:отклик, tar:цель}, ...], ...}, напр. {"001": [{res:0,tar:3}, {res:1,tar:2}]}
+	var input = {}
+	var rows = document.getElementById('cTable').rows;
+	for (var i=1; i<rows.length; i++)
+	{
+		var v = [];
+		for (var j=0; j<5; j++)
+			v[j] = parseInt(rows[i].cells[j+1].getElementsByTagName('input')[0].value);
+		var bond = String(v[0])+String(v[1])+String(v[2]);//связка
+		if (input[bond] == null) input[bond] = [];
+		input[bond].push({res: v[3], tar: v[4]});
+	}
+
+	//Строим характеристические таблицы
+	var K = new Array(4), XK = [];
+	input = buildNextTable(input, K, XK, 'cTable', 4);
+	updateTable(input, 1); input = buildNextTable(input, K, XK, 'Table1', 3);
+	updateTable(input, 2); input = buildNextTable(input, K, XK, 'Table2', 2);
+	updateTable(input, 3); input = buildNextTable(input, K, XK, 'Table3', 1);
+
+	//Строим граф ассоциативного обобщения в виде таблицы
+	var graph = document.getElementById('Graph');
+	while (graph.firstChild) graph.removeChild(graph.firstChild);
+	function addNode(node, x)
+	{
+		if (K[x] == null)
+		{
+			node.appendChild(document.createTextNode(x));
+		}
+		else
+		{
+			var tbl = document.createElement('table');
+			tbl.cellPadding = 3;
+			tbl.cellSpacing = 1;
+			var fcell = tbl.insertRow(-1).insertCell(-1);
+			fcell.innerHTML = x+' (x<sub>'+XK[x]+'</sub>)';
+			tbl.insertRow(-1);
+			tbl.insertRow(-1);
+			for (var i=0; i<K[x].length; i++)
+				if (K[x][i])
+				{
+					tbl.rows[1].insertCell(-1).innerHTML = i;
+					addNode(tbl.rows[2].insertCell(-1), K[x][i]);
+				}
+			fcell.colSpan = tbl.rows[1].cells.length;
+			node.appendChild(tbl);
+		}
+	}
+	addNode(graph, K.length-1);
+
+	//Находим решение
+	var x = K.length-1;
+	while (true)
+	{
+		if (K[x] == null)
+		{
+			document.getElementById('Answer').innerHTML = 'Ответ: ' + x;
+			break;
+		}
+
+		if (!XK[x]) break;
+		var X = document.getElementById('x'+XK[x]).value;
+
+		if (K[x][X] == 0)
+		{
+			document.getElementById('Answer').innerHTML = 'Решения не найдено';
+			break;
+		}
+		x = K[x][X];
+	}
+
+	//Отображаем результат
+	document.getElementById('resTables').style.display='block';
+}
+
+function buildNextTable(input, K, XK, tableId, x)
+{
+	var newTable = {}, begK = K.length;
+
+	for (var bond in input)
+	{
+		var target_changed = false;
+		for (var i=1; i<input[bond].length; i++)
+			if (input[bond][i].tar != input[bond][0].tar) {target_changed=true; break;}
+
+		var target;
+		if (target_changed)//значит изменение значения отклика вызывает изменение значения цели - добавляем новый коннектор
+		{
+			var k = [0,0,0];
+			for (var i=0; i<input[bond].length; i++)
+				k[input[bond][i].res] = input[bond][i].tar;
+			var sk = k.join('');
+			target = K.length;
+			for (var i=begK; i<K.length; i++)
+				if (K[i].join('') == sk) {target=i; break;}
+			K[target] = k;
+			XK[target] = x;
+		}
+		else
+			target = input[bond][0].tar;
+
+		var nbond = bond.substr(0, bond.length-1);//новая связка
+		if (newTable[nbond] == null) newTable[nbond] = [];
+		newTable[nbond].push({res: parseInt(bond.charAt(bond.length-1)), tar: target});
+	}
+
+	with (document.getElementById(tableId))
+	{
+		var r=1;
+		for (; begK<K.length; begK++,r++)
+			rows[r].cells[ rows[r].cells.length-1 ].innerHTML = '('+begK+':<'+K[begK].join(', ')+'>)';
+		for (; r<rows.length; r++)
+			rows[r].cells[ rows[r].cells.length-1 ].innerHTML = '';
+	}
+
+	return newTable;
+}
+
+function updateTable(newTable, tableN)
+{
+	var tbl = document.getElementById('Table'+tableN), N = 1;
+
+	while (tbl.rows.length > 1) tbl.deleteRow(-1);//очищаем таблицу
+
+	for (var bond in newTable)
+	{
+		for (var i=0; i<newTable[bond].length; i++)
+		{
+			var row = tbl.insertRow(-1);
+
+			function addCell(text)
+			{
+				var c = row.insertCell(-1);
+				//c.style.textAlign='center';
+				c.appendChild(document.createTextNode(text));
+			}
+
+			addCell(N++);
+			var t = 0;
+			for (; t<bond.length; t++)
+				addCell(bond.charAt(t));
+			addCell(newTable[bond][i].res);
+			addCell(newTable[bond][i].tar);
+			row.insertCell(-1);
+		}
+	}
+}
+</script>
+<div style="font-size:25px">Лабораторная работа №1</div>
+<div style="font-size:20px">«Ассоциативный механизм индуктивного обобщения»</div>
+<br />
+<div style="font-size:16px;text-align:right">Выполнил: Третьяк А.В.<br />Группа: Р-3211</div>
+<br />
+Тестовое задание -
+x<sub>1</sub>: <input id=x1 type=text value=2 style="width:20px" />
+x<sub>2</sub>: <input id=x2 type=text value=0 style="width:20px" />
+x<sub>3</sub>: <input id=x3 type=text value=1 style="width:20px" />
+x<sub>4</sub>: <input id=x4 type=text value=2 style="width:20px" />
+<input type=button value='СТАРТ' onclick="Start()" /><br /><br />
+<input type=button value='Добавить строку' onclick="addRow(),reEnumerateTable()" />
+<center><table id="cTable" cellspacing="1" cellpadding="1">
+	<tr><th>№</th><th>x<sub>1</sub></th><th>x<sub>2</sub></th><th>x<sub>3</sub></th><th>x<sub>4</sub></th><th>x<sub>5</sub></th><th title='Вставить'>Вс.</th><th title='Удалить'>Уд.</th><th>Коннектор</th></tr>
+</table></center>
+<div id="resTables" style="display:none" align="center">
+	<br />Характеристические таблицы:
+	<table id="Table1" cellspacing="1" cellpadding="3">
+		<tr><th>№</th><th>x<sub>1</sub></th><th>x<sub>2</sub></th><th>x<sub>3</sub></th><th>K(XT<sub>4</sub>)</th><th>K(XT<sub>3</sub>)</th></tr>
+	</table>
+	<table id="Table2" cellspacing="1" cellpadding="3">
+		<tr><th>№</th><th>x<sub>1</sub></th><th>x<sub>2</sub></th><th>K(XT<sub>4</sub>)&K(XT<sub>3</sub>)</th><th>K(XT<sub>2</sub>)</th></tr>
+	</table>
+	<table id="Table3" cellspacing="1" cellpadding="3">
+		<tr><th>№</th><th>x<sub>1</sub></th><th>K(XT<sub>4</sub>)&K(XT<sub>3</sub>)&K(XT<sub>2</sub>)</th><th>K(XT<sub>1</sub>)</th></tr>
+	</table>
+	<br />Граф ассоциативного обобщения в виде таблицы:
+	<div id="Graph"></div>
+	<br />Тестовое задание. <span id="Answer"></span>
+</div>
+</body>
+</html>

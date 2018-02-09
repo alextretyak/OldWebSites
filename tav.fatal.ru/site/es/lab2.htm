@@ -1,0 +1,151 @@
+<html>
+<head>
+<title>Лабораторная работа №2. Выполнил: студент группы Р-3211  Третьяк А.В.</title>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+<style type="text/css">
+	body {background-color:white;text-align:center}
+	#Buttons input {width:100px;display:none}
+</style>
+</head>
+<body onload="onLoad()">
+<script type="text/javascript">
+function onLoad()
+{
+	updateFind();
+}
+
+function updateFind()
+{
+	var tbl = document.getElementById('Table');
+	var checks = tbl.rows[0].cells[0].getElementsByTagName('input');
+	var buttns = tbl.rows[0].cells[1].getElementsByTagName('input');
+	for (var i=0; i<buttns.length; i++)
+		buttns[i].style.display = checks[i].checked ? 'none' : 'block';
+}
+
+var rules = [{rels: ['alpha','beta'], alpha: '180&deg; - &beta;', beta: '180&deg; - &alpha;'},
+			 {rels: ['gamma','delta'], gamma: '180&deg; - &delta;', delta: '180&deg; - &gamma;'},
+			 {rels: ['h','b','alpha'], h: 'b &bull; sin&alpha;', b: 'h/sin&alpha;', alpha: 'arcsin(h/b)'},
+			 {rels: ['S','a','h'], S: 'a &bull; h', a: 'S/h', h: 'S/a'},
+			 {rels: ['S','d1','d2','delta'], S: 'd1 &bull; d2 &bull; sin&delta;', d1: 'S/(d2 &bull; sin&delta;)', d2: 'S/(d1 &bull; sin&delta;)', delta: 'arcsin(S/d1 &bull; d2)'}];
+
+function Find(what)
+{
+	//Подготовка исходных данных (то, что дано, заносим в специальный массив)
+	var found = {};
+	var tbl = document.getElementById('Table');
+	var checks = tbl.rows[0].cells[0].getElementsByTagName('input');
+	for (var i=0; i<checks.length; i++)
+		if (checks[i].checked) found[ checks[i].name ] = 'given';//помечаем параметры, которые нам даны как 'given'
+
+	var res = [], somethingFound;
+
+	//Получаем все возможные параметры и заносим правила для их получения в res
+	do
+	{
+		somethingFound = false;
+
+		for (var i=0; i<rules.length; i++)
+		{
+			var rels = rules[i].rels, foundVarsCount = 0, newFound;
+			for (var j=0; j<rels.length; j++)
+				if (found[ rels[j] ] != null) foundVarsCount++;
+				else newFound = rels[j];
+
+			if (foundVarsCount == rels.length-1)
+			{
+				found[newFound] = {refc: 0, rule: i};
+				res.push(newFound);
+				somethingFound = true;
+				break;
+			}
+		}
+	} while (somethingFound);
+
+	if (found[what] == null)
+	{
+		document.getElementById('res').innerHTML = 'Решения не найдено';
+		return;
+	}
+
+	//Удаляем ненужные правила из res
+	found[what].refc = 1;
+	do//считаем для каждого правила кол-во его использований
+	{
+		somethingFound = false;
+
+		for (f in found)
+		{
+			if (found[f] != 'given' && found[f].refc == 1)
+			{
+				var rels = rules[found[f].rule].rels;
+				for (var i=0; i<rels.length; i++)
+					if (found[rels[i]] != 'given')
+					{
+						found[rels[i]].refc++;
+						somethingFound = true;
+					}
+			}
+		}
+	} while (somethingFound);
+
+	for (f in found)//Теперь удаляем правила, у которых refc == 0, т.е. такие, которые не нужны для получения результата
+	{
+		if (found[f] != 'given' && found[f].refc == 0)
+		{
+			for (var i=0; i<res.length; i++)
+				if (res[i] == f) {res.splice(i, 1); break;}
+		}
+	}
+
+	//Отображаем алгоритм решения
+	var solution = "Решение:<br />";
+	for (var i=0; i<res.length; i++)
+	{
+		var rule = rules[found[res[i]].rule];
+		solution += (res[i].length>2 ? '&'+res[i]+';' : res[i]) + ' = ' + rule[res[i]] + ';<br />';
+	}
+	document.getElementById('res').innerHTML = solution;
+}
+</script>
+<div style="font-size:25px">Лабораторная работа №2</div>
+<div style="font-size:20px">«Функционально-семантические сети»</div>
+<br />
+<div style="font-size:16px;text-align:right">Выполнил: Третьяк А.В.<br />Группа: Р-3211</div>
+<br />
+<img src="par.png" /><br />
+Правила:<br />
+&alpha; = 180&deg; - &beta;;<br />
+&delta; = 180&deg; - &gamma;;<br />
+h = b &bull; sin&alpha;;<br />
+S = a &bull; h;<br />
+S = d1 &bull; d2 &bull; sin&delta;;<br />
+<center><table id="Table" cellspacing="3" cellpadding="3" border=0><tr><td valign=top>
+Дано:
+<br /><input name='alpha' type=checkbox onclick=updateFind() />&alpha;
+<br /><input name='beta'  type=checkbox onclick=updateFind() />&beta;
+<br /><input name='gamma' type=checkbox onclick=updateFind() />&gamma;
+<br /><input name='delta' type=checkbox onclick=updateFind() />&delta;
+<br /><input name='a' type=checkbox onclick=updateFind() />a
+<br /><input name='b' type=checkbox onclick=updateFind() />b
+<br /><input name='h' type=checkbox onclick=updateFind() />h
+<br /><input name='d1' type=checkbox onclick=updateFind() />d1
+<br /><input name='d2' type=checkbox onclick=updateFind() />d2
+<br /><input name='S' type=checkbox onclick=updateFind() />S
+</td>
+<td valign=bottom id='Buttons' style="width:100px">
+<input type=button value='Найти &alpha;' onclick="Find('alpha')" />
+<input type=button value='Найти &beta;' onclick="Find('beta')" />
+<input type=button value='Найти &gamma;' onclick="Find('gamma')" />
+<input type=button value='Найти &delta;' onclick="Find('delta')" />
+<input type=button value='Найти a' onclick="Find('a')" />
+<input type=button value='Найти b' onclick="Find('b')" />
+<input type=button value='Найти h' onclick="Find('h')" />
+<input type=button value='Найти d1' onclick="Find('d1')" />
+<input type=button value='Найти d2' onclick="Find('d2')" />
+<input type=button value='Найти S' onclick="Find('S')" />
+</td>
+<td id="res" style="width:150px"></td>
+</tr></table></center>
+</body>
+</html>
